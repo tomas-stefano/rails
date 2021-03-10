@@ -329,32 +329,53 @@ module ActionController #:nodoc:
       # +masked_authenticity_token+.
       def valid_authenticity_token?(session, encoded_masked_token) # :doc:
         if encoded_masked_token.nil? || encoded_masked_token.empty? || !encoded_masked_token.is_a?(String)
+          Rails.logger.info("Encoded masked token nil, empty or not a string")
           return false
         end
 
         begin
           masked_token = decode_csrf_token(encoded_masked_token)
-        rescue ArgumentError # encoded_masked_token is invalid Base64
+        rescue ArgumentError => e # encoded_masked_token is invalid Base64
+          Rails.logger.info(
+            "Impossible to decode csrf token: #{encoded_masked_token}. Exception message: #{e.message}"
+          )
           return false
         end
+
+        Rails.logger.info("masked_token: #{masked_token}")
 
         # See if it's actually a masked token or not. In order to
         # deploy this code, we should be able to handle any unmasked
         # tokens that we've issued without error.
 
         if masked_token.length == AUTHENTICITY_TOKEN_LENGTH
+          Rails.logger.info("masked_token.length == AUTHENTICITY_TOKEN_LENGTH: true")
           # This is actually an unmasked token. This is expected if
           # you have just upgraded to masked tokens, but should stop
           # happening shortly after installing this gem.
+          Rails.logger.info("compare_with_real_token masked_token, session: #{compare_with_real_token masked_token, session}")
           compare_with_real_token masked_token, session
 
         elsif masked_token.length == AUTHENTICITY_TOKEN_LENGTH * 2
+          Rails.logger.info("masked_token.length == AUTHENTICITY_TOKEN_LENGTH * 2: true")
           csrf_token = unmask_token(masked_token)
 
+          Rails.logger.info("csrf_token: #{csrf_token}")
+
+          Rails.logger.info(
+            "compare_with_global_token: #{compare_with_global_token(csrf_token, session)}"
+          )
+          Rails.logger.info(
+            "compare_with_real_token: #{compare_with_real_token(csrf_token, session)}"
+          )
+          Rails.logger.info(
+            "valid_per_form_csrf_token?(csrf_token, session): #{valid_per_form_csrf_token?(csrf_token, session)}"
+          )
           compare_with_global_token(csrf_token, session) ||
             compare_with_real_token(csrf_token, session) ||
             valid_per_form_csrf_token?(csrf_token, session)
         else
+          Rails.logger.info("Token is malformed")
           false # Token is malformed.
         end
       end
